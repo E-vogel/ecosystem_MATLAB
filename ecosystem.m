@@ -4,11 +4,11 @@ close all
 %各エージェントの初期個体数
 n_grass = 200;
 n_sheep = 100;
-n_dog = 10;
+n_dog = 15;
 
 %ステップ幅，時間
 h = 0.01;
-t = 0:h:30;
+t = 0:h:10;
 
 %初期状態（位置・速度）
 rang = 10; 
@@ -25,7 +25,8 @@ Vs = 3*(2*rand(1,2) - 1); %sheepの進行速度
 %寿命設定
 lifespanmax = 300; %寿命最大
 lifespan_sheep = lifespanmax*ones(n_sheep,1);
-lifespan_dog = lifespanmax*ones(n_dog,1);
+%lifespan_dog = lifespanmax*ones(n_dog,1);
+lifespan_dog = randi([50 300],n_dog,1);
 
 %空腹度設定
 hungermax = 20; %満腹状態
@@ -33,11 +34,11 @@ hunger_sheep = hungermax*ones(n_sheep,1);
 hunger_dog = randi([1 10],n_dog,1);
 
 %各ゲイン
-k_sheep_av = 0;
+k_sheep_av = 0.01;
 k_sheep_rp = 1.2;
 k_sheep_at = 0.2;
 
-k_dog_at = 0.1;
+k_dog_at = 0.15;
 
 %各値の保存用
 n_sheep_str = zeros(length(t),1);
@@ -57,12 +58,13 @@ X_dog_str{1} = X_dog;
 %シミュレーション
 disp("Give me a second...")
 for step = 2:length(t)
+    disp([step n_sheep n_dog])
     %速度更新
     V_sheep = V_sheep - k_sheep_av*(V_sheep - sum(V_sheep)/n_sheep); %Void(整列)
     V_sheep = V_sheep - k_sheep_av*(V_sheep - sum(X_sheep)/n_sheep); %Void(結合)
 
-    if mod(step,30) == 0 %進行方向(サイクル30)
-        Vs = 2*rand(1,2) - 1;
+    if mod(step,60) == 0 %進行方向(サイクル60)
+        Vs = 3*(2*rand(1,2) - 1);
     end
 
     V_sheep = V_sheep + 3*(2*rand(size(V_sheep)) - 1) + ones(size(V_sheep)).*Vs; %ランダム＋進行方向
@@ -74,13 +76,13 @@ for step = 2:length(t)
             if distance_tmp < rang && hunger_dog(j) <= 0 %飢餓状態
                 V_dog(j,:) = V_dog(j,:) - k_dog_at*(X_dog(j,:) - X_sheep(i,:))/distance_tmp;
             end
-            if distance_tmp < rang*0.6 %回避
+            if distance_tmp < rang*0.4 %回避
                 V_sheep(i,:) = V_sheep(i,:) + k_sheep_rp*(X_sheep(i,:) - X_dog(j,:))/distance_tmp;
             end
         end
         for ii = 1:n_sheep
             distance_tmp = norm(X_sheep(i,:)-X_sheep(ii,:));
-            if i ~= ii && distance_tmp > rang*0.5 && distance_tmp < rang*1.2 %同種に近づく
+            if i ~= ii && distance_tmp > rang*0.6 && distance_tmp < rang*1.2 %同種に近づく
                 V_sheep(i,:) = V_sheep(i,:) - k_sheep_at*(X_sheep(i,:) - X_sheep(ii,:))/distance_tmp;
             end
         end
@@ -134,16 +136,18 @@ for step = 2:length(t)
 
     %繁殖sheep
     for i = 1:n_sheep    
-        if mod(step,5) == 0 %繁殖周期
+        if mod(step,2) == 0 %繁殖周期
             for ii = 1:n_sheep
                 distance_tmp = norm(X_sheep(i,:)-X_sheep(ii,:));
                 if i ~= ii && distance_tmp < rang*0.1 && rand < 0.95^n_sheep ... 
-                        && lifespan_sheep(i) < lifespanmax*0.8 && lifespan_sheep(ii) < lifespanmax*0.8 %成熟するまで繁殖しない
+                        && lifespan_sheep(i) < lifespanmax*0.8 && lifespan_sheep(ii) < lifespanmax*0.8 && hunger_sheep(i) > 0 && hunger_sheep(ii) > 0 %成熟するまで繁殖しない
+                    hunger_sheep(i) = hunger_sheep(i) - 2;
+                    hunger_sheep(ii) = hunger_sheep(ii) - 2;
                     n_sheep = n_sheep + 1;
                     X_sheep = [X_sheep; (X_sheep(i,:) + X_sheep(ii,:))/2];
                     V_sheep = [V_sheep; (V_sheep(i,:) + V_sheep(ii,:))/2];
                     lifespan_sheep = [lifespan_sheep; lifespanmax];
-                    hunger_sheep = [hunger_sheep; hungermax];
+                    hunger_sheep = [hunger_sheep; 0];
                 end
             end
         end
@@ -151,11 +155,13 @@ for step = 2:length(t)
     
     %繁殖dog
     for j = 1:n_dog
-        if mod(step,3) == 0 %繁殖周期
+        if mod(step,2) == 0 %繁殖周期
             for jj = 1:n_dog
                 distance_tmp = norm(X_dog(j,:)-X_dog(jj,:));
-                if j ~= jj && distance_tmp < rang*0.1 && rand < 0.9^n_dog ... 
-                        && lifespan_dog(j) < lifespanmax*0.8 && lifespan_dog(jj) < lifespanmax*0.8 %成熟するまで繁殖しない
+                if j ~= jj && distance_tmp < rang*0.1 && rand < 0.99^(n_dog^1.8) ... 
+                        && lifespan_dog(j) < lifespanmax*0.8 && lifespan_dog(jj) < lifespanmax*0.8  && hunger_dog(j) > 0 && hunger_dog(jj) > 0 %成熟するまで繁殖しない
+                    hunger_dog(j) = hunger_dog(j) - 2;
+                    hunger_dog(jj) = hunger_dog(jj) - 2;
                     n_dog = n_dog + 1;
                     X_dog = [X_dog; (X_dog(j,:) + X_dog(jj,:))/2];
                     V_dog = [V_dog; (V_dog(j,:) + V_dog(jj,:))/2];
@@ -181,10 +187,12 @@ for step = 2:length(t)
 
     %捕食(sheep　→　grass)
     for i = 1:n_sheep
-        X_grass(distance_sg(i,:) < rang*0.05,:) = [];
-        hunger_sheep(i) = hunger_sheep(i) + length(distance_sg(:,distance_sg(i,:) < rang*0.05));
-        distance_sg(:,distance_sg(i,:) < rang*0.05) = [];
-        n_grass = length(X_grass(:,1));
+        if hunger_sheep(i) < hungermax
+            X_grass(distance_sg(i,:) < rang*0.05,:) = [];
+            hunger_sheep(i) = hunger_sheep(i) + length(distance_sg(:,distance_sg(i,:) < rang*0.05));
+            distance_sg(:,distance_sg(i,:) < rang*0.05) = [];
+            n_grass = length(X_grass(:,1));
+        end
     end
 
     %捕食(dog → sheep)
@@ -212,9 +220,9 @@ for step = 2:length(t)
     X_sheep(X_sheep < -rang) = X_sheep(X_sheep < -rang) + 2*rang;
     
     %sheepの餌供給
-    if n_grass < 600
-        n_grass = n_grass + 100;
-        X_grass = [X_grass; rang*(2*rand(100,2) - 1)];
+    if n_grass < 1000
+        n_grass = n_grass + 200;
+        X_grass = [X_grass; rang*(2*rand(200,2) - 1)];
     end
     
     %保存
@@ -225,7 +233,7 @@ for step = 2:length(t)
     X_dog_str{step} = X_dog;
     
     %終了条件
-    if n_sheep == 0 || n_sheep >= 200 || n_dog == 0 || n_dog >= 20
+    if n_sheep == 0 || n_sheep >= 200 || n_dog == 0 || n_dog >= 30
         break
     end
 end
@@ -272,7 +280,7 @@ yyaxis right
 p_dog = plot(0,n_dog_str(1),'LineWidth',1,'Color','r');
 xlabel('step')
 ylabel('Number of predators(Dog)')
-axis([1 1.1 0 20])
+axis([1 1.1 0 30])
 
 
 %プロット更新
@@ -294,7 +302,7 @@ for step_plot = 2:step
 
     p_dog.XData = 1:step_plot;
     p_dog.YData = n_dog_str(1:step_plot);
-    axis([1 step_plot 0 20])
+    axis([1 step_plot 0 30])
 
-    drawnow 
+    drawnow
 end
