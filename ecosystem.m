@@ -240,8 +240,6 @@ end
 
 %プロット
 figure('Position',[200 200 800 400])
-video = VideoWriter('ecosystem.mp4','MPEG-4');
-open(video);
 
 %生態系シミュレーション(左図)
 sub1 = subplot(1,2,1);
@@ -298,7 +296,5 @@ for step_plot = 2:step
     p_dog.YData = n_dog_str(1:step_plot);
     axis([1 step_plot 0 20])
 
-    frame = getframe(gcf);
-    writeVideo(video,frame);  
+    drawnow 
 end
-close(video);
